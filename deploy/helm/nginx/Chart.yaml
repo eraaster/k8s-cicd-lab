@@ -1,0 +1,6 @@
+apiVersion: v2
+name: nginx
+description: 3주차 과제 1 실습용 Nginx 차트
+type: application
+version: 0.1.0
+appVersion: "alpine"
