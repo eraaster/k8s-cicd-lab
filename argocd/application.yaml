@@ -1,3 +1,4 @@
+# 첫 수동 Sync 확인 후 적용: 자동 동기화 켜기
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -13,5 +14,8 @@ spec:
     server: https://kubernetes.default.svc
     namespace: cicd-gitops
   syncPolicy:
+    automated:
+      prune: false
+      selfHeal: false
     syncOptions:
     - CreateNamespace=true
