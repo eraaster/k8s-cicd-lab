@@ -17,7 +17,7 @@ spec:
       containers:
       - name: nginx
         # Actions가 새 SHA 태그로 이 줄을 바꿔서 commit함
-        image: ghcr.io/eraaster/nginx-api:42ba7fb3bb44eebbce4ca0b6aaec3b9e63eec998
+        image: ghcr.io/eraaster/nginx-api:4062cbb48d42719c50576014d2bda94e5fb999fd
         ports:
         - containerPort: 8080
         readinessProbe:
