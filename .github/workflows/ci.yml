@@ -1,21 +1,24 @@
 name: ci
 
+# 과제 3: 이미지 빌드 후 클러스터에 직접 배포하지 않고
+# deploy/gitops 의 image 를 새 SHA 로 바꿔 commit 한다. 배포는 Argo CD 담당.
 on:
   push:
     branches: [main]
     paths:
       - "app/**"
-      - "deploy/ci/**"
       - ".github/workflows/ci.yml"
   workflow_dispatch:
 
 permissions:
   contents: read
-  packages: write
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     outputs:
       image: ${{ steps.meta.outputs.image }}
     steps:
@@ -43,27 +46,28 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.image }}
 
-  deploy:
+  update-manifest:
     needs: build
-    # 내 WSL에 등록한 개인 runner에서만 실행
-    runs-on: [self-hosted, linux]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
     env:
       IMAGE: ${{ needs.build.outputs.image }}
-      KUBE_CONTEXT: kind-cicd
     steps:
       - uses: actions/checkout@v4
 
-      - name: Deploy to kind
+      - name: Update image in deploy/gitops
         shell: bash
         run: |
           set -euo pipefail
-          echo "IMAGE=$IMAGE"
-          kubectl set image --local -f deploy/ci/deployment.yaml nginx="$IMAGE" -o yaml \
-            | kubectl --context "$KUBE_CONTEXT" -n cicd-ci apply -f -
-          kubectl --context "$KUBE_CONTEXT" -n cicd-ci apply -f deploy/ci/service.yaml
-          kubectl --context "$KUBE_CONTEXT" -n cicd-ci rollout status deployment/nginx-api --timeout=180s
-          kubectl --context "$KUBE_CONTEXT" -n cicd-ci get deployment nginx-api \
-            -o jsonpath='{.spec.template.spec.containers[0].image}'
-          echo
-          kubectl --context "$KUBE_CONTEXT" -n cicd-ci get pods -l app=nginx-api \
-            -o jsonpath='{range .items[*]}{.metadata.name}{"  "}{.spec.containers[0].image}{"  "}{.status.containerStatuses[0].imageID}{"\n"}{end}'
+          sed -i -E "s#^(\s*image:\s*)ghcr\.io/[^[:space:]]+/nginx-api:[^[:space:]]+#\1${IMAGE}#" deploy/gitops/deployment.yaml
+          grep -n "image:" deploy/gitops/deployment.yaml
+          if git diff --quiet; then
+            echo "no change"; exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add deploy/gitops/deployment.yaml
+          git commit -m "deploy(gitops): nginx-api -> ${GITHUB_SHA}"
+          git pull --rebase origin main
+          git push origin HEAD:main

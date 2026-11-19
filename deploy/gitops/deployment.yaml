@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-api
+  labels:
+    app: nginx-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx-api
+  template:
+    metadata:
+      labels:
+        app: nginx-api
+    spec:
+      containers:
+      - name: nginx
+        # Actions가 새 SHA 태그로 이 줄을 바꿔서 commit함
+        image: ghcr.io/eraaster/nginx-api:e5c354f8d93d05a3f245ac991d3d6cf8e7ca1f12
+        ports:
+        - containerPort: 8080
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
